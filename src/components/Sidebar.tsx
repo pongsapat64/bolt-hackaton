@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Coffee, 
-  History, 
-  Package, 
-  BarChart2, 
-  Settings as SettingsIcon,
+  Home,
+  ClipboardList,
+  Receipt,
+  Package,
+  LayoutDashboard,
   LogOut 
 } from 'lucide-react';
 
@@ -16,11 +16,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'POS', path: '/pos', icon: <Coffee className="w-5 h-5" /> },
-  { name: 'Orders History', path: '/orders', icon: <History className="w-5 h-5" /> },
-  { name: 'Inventory', path: '/inventory', icon: <Package className="w-5 h-5" /> },
-  { name: 'Reports', path: '/reports', icon: <BarChart2 className="w-5 h-5" /> },
-  { name: 'Settings', path: '/settings', icon: <SettingsIcon className="w-5 h-5" /> },
+  { name: 'Home', path: '/pos', icon: <Home className="w-5 h-5" /> },
+  { name: 'Processing Order', path: '/processing', icon: <ClipboardList className="w-5 h-5" /> },
+  { name: 'Receipt', path: '/receipt', icon: <Receipt className="w-5 h-5" /> },
+  { name: 'Product List', path: '/products', icon: <Package className="w-5 h-5" /> },
+  { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
 ];
 
 function Sidebar() {
@@ -35,7 +35,7 @@ function Sidebar() {
     <div className="w-64 bg-white border-r border-slate-200 h-screen flex flex-col">
       <div className="p-4">
         <div className="flex items-center space-x-3">
-          <Coffee className="h-8 w-8 text-slate-700" />
+          <Home className="h-8 w-8 text-slate-700" />
           <span className="text-xl font-bold text-slate-900">Cafe POS</span>
         </div>
       </div>
