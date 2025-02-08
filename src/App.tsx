@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Register from './pages/Register';
+
 import POSCafe from './pages/POSCafe';
 import ProcessingOrder from './pages/ProcessingOrder';
 import Receipt from './pages/Receipt';
@@ -13,7 +13,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+
         <Route path="/pos" element={<POSCafe />} />
         <Route path="/processing" element={<ProcessingOrder />} />
         <Route path="/receipt" element={<Receipt />} />

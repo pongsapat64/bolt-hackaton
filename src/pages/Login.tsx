@@ -107,14 +107,6 @@ function Login() {
           </button>
         </form>
 
-        <div className="text-center text-sm">
-          <p className="text-slate-600">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-slate-800 font-medium hover:text-slate-900">
-              Create one
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
   );
