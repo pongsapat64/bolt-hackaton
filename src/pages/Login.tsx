@@ -1,46 +1,44 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Shield } from 'lucide-react';
-
-// In a real app, these would be stored securely in a database
-const MANAGER_CREDENTIALS = {
-  email: 'admin@cafe.com',
-  password: 'admin123'
-};
-
-const EMPLOYEE_CREDENTIALS = {
-  email: 'employee@cafe.com',
-  password: 'cafe123'
-};
+import { useNavigate, Link } from 'react-router-dom';
+import { Mail, Lock, Shield, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+    setLoading(true);
+
     if (!email || !password) {
       setError('Please fill in all fields');
+      setLoading(false);
       return;
     }
 
-    // Check manager credentials
-    if (email === MANAGER_CREDENTIALS.email && password === MANAGER_CREDENTIALS.password) {
-      navigate('/dashboard');
-      return;
-    }
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    // Check employee credentials
-    if (email === EMPLOYEE_CREDENTIALS.email && password === EMPLOYEE_CREDENTIALS.password) {
-      navigate('/pos');
-      return;
-    }
+      if (signInError) throw signInError;
 
-    setError('Invalid email or password');
+      if (data.user) {
+        // Check user metadata to determine role and redirect accordingly
+        const isAdmin = data.user.user_metadata.role === 'admin';
+        navigate(isAdmin ? '/dashboard' : '/pos');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,14 +48,15 @@ function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
             <Shield className="w-8 h-8 text-slate-700" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Cafe Login</h1>
-          <p className="text-slate-500 mt-2">Sign in to access your workspace</p>
+          <h1 className="text-2xl font-bold text-slate-900">Welcome Back</h1>
+          <p className="text-slate-500 mt-2">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm border border-red-100">
-              {error}
+            <div className="flex items-center gap-2 bg-red-50 text-red-500 p-3 rounded-lg text-sm border border-red-100">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <p>{error}</p>
             </div>
           )}
 
@@ -99,30 +98,22 @@ function Login() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-slate-600 focus:ring-slate-500 border-slate-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-700">
-                Keep me signed in
-              </label>
-            </div>
-          </div>
-
           <button
             type="submit"
-            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors"
+            disabled={loading}
+            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
           >
-            Sign in
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 
-        <div className="text-center text-sm text-slate-500">
-          <p>Manager Login: admin@cafe.com / admin123</p>
-          <p>Employee Login: employee@cafe.com / cafe123</p>
+        <div className="text-center text-sm">
+          <p className="text-slate-600">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-slate-800 font-medium hover:text-slate-900">
+              Create one
+            </Link>
+          </p>
         </div>
       </div>
     </div>
