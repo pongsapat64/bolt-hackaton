@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Coffee, ShoppingCart, Plus, Minus, Search, CreditCard, QrCode, X } from 'lucide-react';
+import { Coffee, ShoppingCart, Plus, Minus, Search, CreditCard, QrCode, X, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 
@@ -84,7 +84,9 @@ function POSCafe() {
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
+  const [showCashPayment, setShowCashPayment] = useState(false);
+  const [showQRPayment, setShowQRPayment] = useState(false);
+  const [cashAmount, setCashAmount] = useState<string>('');
   const [customization, setCustomization] = useState<ProductCustomization>({
     temperature: 'ร้อน',
     size: 'เล็ก',
@@ -135,16 +137,31 @@ function POSCafe() {
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const handlePayment = () => {
-    if (cart.length > 0) {
-      setShowPayment(true);
+  const handleCashPayment = () => {
+    setShowCashPayment(true);
+  };
+
+  const handleQRPayment = () => {
+    setShowQRPayment(true);
+  };
+
+  const handleProcessPayment = () => {
+    navigate('/processing');
+  };
+
+  const handleCashInput = (value: string) => {
+    if (value === 'clear') {
+      setCashAmount('');
+    } else if (value === 'backspace') {
+      setCashAmount(prev => prev.slice(0, -1));
+    } else {
+      setCashAmount(prev => prev + value);
     }
   };
 
-  const handleProcessPayment = (method: 'cash' | 'qr') => {
-    // Here you would handle the payment processing
-    // For now, we'll just navigate to the processing page
-    navigate('/processing');
+  const getChange = () => {
+    const paid = parseFloat(cashAmount) || 0;
+    return Math.max(0, paid - total);
   };
 
   return (
@@ -291,13 +308,24 @@ function POSCafe() {
               <span className="text-xl font-semibold text-slate-900">฿{total}</span>
             </div>
 
-            <button
-              onClick={handlePayment}
-              disabled={cart.length === 0}
-              className="w-full px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed transition-colors"
-            >
-              ชำระเงิน
-            </button>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={handleCashPayment}
+                disabled={cart.length === 0}
+                className="flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed"
+              >
+                <CreditCard className="h-5 w-5" />
+                <span>เงินสด</span>
+              </button>
+              <button
+                onClick={handleQRPayment}
+                disabled={cart.length === 0}
+                className="flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed"
+              >
+                <QrCode className="h-5 w-5" />
+                <span>QR Code</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -398,37 +426,110 @@ function POSCafe() {
         </div>
       )}
 
-      {/* Payment Modal */}
-      {showPayment && (
+      {/* Cash Payment Modal */}
+      {showCashPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">เลือกวิธีการชำระเงิน</h3>
+              <h3 className="text-xl font-semibold">ชำระเงินสด</h3>
               <button
-                onClick={() => setShowPayment(false)}
+                onClick={() => {
+                  setShowCashPayment(false);
+                  setCashAmount('');
+                }}
                 className="p-1 hover:bg-slate-100 rounded-full"
               >
                 <X className="h-5 w-5 text-slate-600" />
               </button>
             </div>
 
+            <div className="bg-slate-50 p-4 rounded-lg mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-slate-600">ยอดรวม</span>
+                <span className="text-lg font-semibold">฿{total}</span>
+              </div>
+              {cashAmount && (
+                <>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-slate-600">รับเงิน</span>
+                    <span className="text-lg font-semibold">฿{parseFloat(cashAmount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">เงินทอน</span>
+                    <span className="text-lg font-semibold text-green-600">฿{getChange().toFixed(2)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="space-y-4">
-              <button
-                onClick={() => handleProcessPayment('cash')}
-                className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-slate-50 hover:bg-slate-100 rounded-lg"
-              >
-                <CreditCard className="h-6 w-6 text-slate-700" />
-                <span className="text-lg font-medium">เงินสด</span>
-              </button>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={cashAmount}
+                  readOnly
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 text-2xl text-right font-semibold bg-white border border-slate-200 rounded-lg"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'backspace'].map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => handleCashInput(key)}
+                    className="p-4 text-xl font-medium bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+                  >
+                    {key === 'backspace' ? '←' : key === 'clear' ? 'C' : key}
+                  </button>
+                ))}
+              </div>
 
               <button
-                onClick={() => handleProcessPayment('qr')}
-                className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-slate-50 hover:bg-slate-100 rounded-lg"
+                onClick={handleProcessPayment}
+                disabled={!cashAmount || parseFloat(cashAmount) < total}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed"
               >
-                <QrCode className="h-6 w-6 text-slate-700" />
-                <span className="text-lg font-medium">QR Code</span>
+                <span>ยืนยันการชำระเงิน</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Payment Modal */}
+      {showQRPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">สแกน QR Code เพื่อชำระเงิน</h3>
+              <button
+                onClick={() => setShowQRPayment(false)}
+                className="p-1 hover:bg-slate-100 rounded-full"
+              >
+                <X className="h-5 w-5 text-slate-600" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-lg mb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-600">ยอดรวม</span>
+                <span className="text-lg font-semibold">฿{total}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-center mb-6">
+              <div className="w-64 h-64 bg-slate-100 rounded-lg flex items-center justify-center">
+                <QrCode className="w-32 h-32 text-slate-400" />
+              </div>
+            </div>
+
+            <button
+              onClick={handleProcessPayment}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            >
+              <span>ยืนยันการชำระเงิน</span>
+            </button>
           </div>
         </div>
       )}
