@@ -180,7 +180,7 @@ function POSCafe() {
     };
     setShowQRPayment(true);
     try {
-        const response = await fetch("http://127.0.0.1:6060/api/stripe/custom_price", {
+        const response = await fetch("https://d1ed-49-237-42-150.ngrok-free.app/api/stripe/custom_price", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
