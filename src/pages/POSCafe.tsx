@@ -24,6 +24,7 @@ interface CartItem {
   price: number;
   quantity: number;
   customization: ProductCustomization;
+  image: string; // Add this line
 }
 
 const products: Product[] = [
@@ -106,7 +107,8 @@ function POSCafe() {
       name: selectedProduct.name,
       price: selectedProduct.price,
       quantity: 1,
-      customization: { ...customization }
+      customization: { ...customization },
+      image: selectedProduct.image
     };
 
     setCart(prev => [...prev, newItem]);
@@ -141,9 +143,47 @@ function POSCafe() {
     setShowCashPayment(true);
   };
 
-  const handleQRPayment = () => {
+  const handleQRPayment = async () => {
+    if (cart.length === 0) {
+        console.error("Cart is empty. Cannot process payment.");
+        return;
+    }
+
+    // Convert cart items to match the expected API payload format, including the image
+    const payload = {
+        item: cart.map(item => ({
+            name: item.name,
+            description: `${item.customization.sweetness} ${item.customization.size}`,
+            price: item.price * 100, // Convert to smallest currency unit (e.g., THB cents)
+            image: item.image // Include product image URL
+        })),
+        currency: "thb",
+        method: ["promptpay"]
+    };
     setShowQRPayment(true);
-  };
+    try {
+        const response = await fetch("http://127.0.0.1:6060/api/stripe/custom_price", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.data) {
+          window.location.href = data.data; // Redirect to payment URL
+        }
+
+    } catch (error) {
+        console.error("Error processing QR payment:", error);
+    }
+};
+
 
   const handleProcessPayment = () => {
     navigate('/processing');

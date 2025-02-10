@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { ClipboardList, Volume2 } from 'lucide-react';
 
@@ -15,12 +15,47 @@ const mockOrders = [
   }
 ];
 
+const BOTNOI_API_URL = 'https://api-voice.botnoi.ai/openapi/v1/generate_audio';
+const BOTNOI_TOKEN = 'UXpKT1FrUEZKY1FuU2lBUmU0bVI4czN6MkV6MTU2MTg5NA=='; // Add your Botnoi token here
+
 function ProcessingOrder() {
-  const handleReadyToServe = (orderNumber: number) => {
-    // Here you would typically:
-    // 1. Play the voice API
-    // 2. Update the order status
-    console.log(`Order ${orderNumber} is ready to serve`);
+  const [loading, setLoading] = useState<number | null>(null);
+
+  const handleReadyToServe = async (orderNumber: number) => {
+    setLoading(orderNumber);
+    
+    const textToSpeak = `ออเดอร์หมายเลข ${orderNumber} พร้อมแล้ว`;
+    
+    try {
+      const response = await fetch(BOTNOI_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Botnoi-Token': BOTNOI_TOKEN
+        },
+        body: JSON.stringify({
+          text: textToSpeak,
+          speaker: "2",
+          volume: 1,
+          speed: 1,
+          type_media: "mp3",
+          save_file: true
+        })
+      });
+
+      const data = await response.json();
+
+      if (data && data.audio_url) {
+        const audio = new Audio(data.audio_url);
+        audio.play();
+      } else {
+        console.error('Error generating audio:', data);
+      }
+    } catch (error) {
+      console.error('Error calling the API:', error);
+    } finally {
+      setLoading(null);
+    }
   };
 
   return (
@@ -66,10 +101,13 @@ function ProcessingOrder() {
 
                 <button
                   onClick={() => handleReadyToServe(order.number)}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                  disabled={loading === order.number}
+                  className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    loading === order.number ? 'bg-gray-400' : 'bg-slate-700 hover:bg-slate-800 text-white'
+                  }`}
                 >
                   <Volume2 className="h-5 w-5" />
-                  <span>Ready to Serve</span>
+                  <span>{loading === order.number ? 'Loading...' : 'Ready to Serve'}</span>
                 </button>
               </div>
             </div>
