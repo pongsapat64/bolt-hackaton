@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Plus, Search, Edit, Trash2, Coffee, CakeSlice, IceCream } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Coffee, CakeSlice, IceCream, Users } from 'lucide-react';
 
 interface Product {
   id: number;
@@ -88,6 +89,7 @@ const products: Product[] = [
 ];
 
 function ProductList() {
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -119,11 +121,23 @@ function ProductList() {
       <Sidebar />
       <div className="flex-1 p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Product List</h1>
-          <button className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors">
-            <Plus className="h-5 w-5 mr-2" />
-            Add Product
-          </button>
+          <h1 className="text-2xl font-bold text-slate-900">จัดการสินค้า</h1>
+          <div className="flex space-x-4">
+            <button 
+              onClick={() => navigate('/add-employee')}
+              className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <Users className="h-5 w-5 mr-2" />
+              เพิ่มพนักงาน
+            </button>
+            <button 
+              onClick={() => navigate('/add-product')}
+              className="flex items-center px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              เพิ่มสินค้า
+            </button>
+          </div>
         </div>
 
         <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -132,7 +146,7 @@ function ProductList() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder="ค้นหาสินค้า..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
@@ -162,11 +176,11 @@ function ProductList() {
             <table className="min-w-full divide-y divide-slate-200">
               <thead>
                 <tr className="bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Product</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Stock</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">สินค้า</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">หมวดหมู่</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ราคา</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">สต็อก</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -191,7 +205,7 @@ function ProductList() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                      ${product.price.toFixed(2)}
+                      ฿{product.price.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -201,7 +215,7 @@ function ProductList() {
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {product.stock} units
+                        {product.stock} ชิ้น
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">

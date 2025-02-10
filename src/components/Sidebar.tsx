@@ -1,12 +1,13 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Home,
+  Coffee,
   ClipboardList,
   Receipt,
   Package,
   LayoutDashboard,
-  LogOut 
+  LogOut,
+  Users 
 } from 'lucide-react';
 
 interface NavItem {
@@ -16,11 +17,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'Home', path: '/pos', icon: <Home className="w-5 h-5" /> },
-  { name: 'Processing Order', path: '/processing', icon: <ClipboardList className="w-5 h-5" /> },
-  { name: 'Receipt', path: '/receipt', icon: <Receipt className="w-5 h-5" /> },
-  { name: 'Product List', path: '/products', icon: <Package className="w-5 h-5" /> },
-  { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { name: 'หน้าขาย', path: '/pos', icon: <Coffee className="w-5 h-5" /> },
+  { name: 'รายการสั่งซื้อ', path: '/processing', icon: <ClipboardList className="w-5 h-5" /> },
+  { name: 'ใบเสร็จ', path: '/receipt', icon: <Receipt className="w-5 h-5" /> },
+  { name: 'จัดการสินค้า', path: '/products', icon: <Package className="w-5 h-5" /> },
+  { name: 'แดชบอร์ด', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
 ];
 
 function Sidebar() {
@@ -35,8 +36,8 @@ function Sidebar() {
     <div className="w-64 bg-white border-r border-slate-200 h-screen flex flex-col">
       <div className="p-4">
         <div className="flex items-center space-x-3">
-          <Home className="h-8 w-8 text-slate-700" />
-          <span className="text-xl font-bold text-slate-900">Cafe POS</span>
+          <Coffee className="h-8 w-8 text-slate-700" />
+          <span className="text-xl font-bold text-slate-900">Cafe Manager</span>
         </div>
       </div>
 
@@ -66,7 +67,7 @@ function Sidebar() {
           className="w-full flex items-center space-x-3 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors"
         >
           <LogOut className="w-5 h-5" />
-          <span>Sign Out</span>
+          <span>ออกจากระบบ</span>
         </button>
       </div>
     </div>

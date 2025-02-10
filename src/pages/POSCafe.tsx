@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Coffee, ShoppingCart, Plus, Minus, Search, CreditCard, QrCode, X, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { employeeStore } from './ManagerDashboard';
 
 interface Product {
   id: number;
@@ -9,6 +10,7 @@ interface Product {
   nameEn: string;
   price: number;
   image: string;
+  category?: string;
 }
 
 interface ProductCustomization {
@@ -33,49 +35,56 @@ const products: Product[] = [
     name: 'อเมริกาโน่',
     nameEn: 'Americano',
     price: 40,
-    image: 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=400&q=80'
+    image: 'https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=400&q=80',
+    category: 'Hot Coffee'
   },
   {
     id: 2,
     name: 'เอสเพรสโซ่',
     nameEn: 'Espresso',
     price: 45,
-    image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400&q=80'
+    image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400&q=80',
+    category: 'Hot Coffee'
   },
   {
     id: 3,
     name: 'คาปูชิโน่',
     nameEn: 'Cappuccino',
     price: 40,
-    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&q=80'
+    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&q=80',
+    category: 'Hot Coffee'
   },
   {
     id: 4,
     name: 'มอคค่า',
     nameEn: 'Mocha',
     price: 45,
-    image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80'
+    image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80',
+    category: 'Cold Coffee'
   },
   {
     id: 5,
     name: 'ลาเต้',
     nameEn: 'Latte',
     price: 40,
-    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&q=80'
+    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&q=80',
+    category: 'Cold Coffee'
   },
   {
     id: 6,
     name: 'คาราเมลมัคคิอาโต้',
     nameEn: 'Caramel Macchiato',
     price: 50,
-    image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80'
+    image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80',
+    category: 'Blended'
   },
   {
     id: 7,
     name: 'กาแฟเย็น',
     nameEn: 'Iced Coffee',
     price: 40,
-    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&q=80'
+    image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&q=80',
+    category: 'Cold Coffee'
   }
 ];
 
@@ -88,11 +97,20 @@ function POSCafe() {
   const [showCashPayment, setShowCashPayment] = useState(false);
   const [showQRPayment, setShowQRPayment] = useState(false);
   const [cashAmount, setCashAmount] = useState<string>('');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
   const [customization, setCustomization] = useState<ProductCustomization>({
     temperature: 'ร้อน',
     size: 'เล็ก',
     sweetness: 'หวานปกติ',
     note: ''
+  });
+
+  const filteredProducts = products.filter(product => {
+    if (selectedCategory === 'ทั้งหมด') return true;
+    if (selectedCategory === 'ร้อน') return product.category === 'Hot Coffee';
+    if (selectedCategory === 'เย็น') return product.category === 'Cold Coffee';
+    if (selectedCategory === 'ปั่น') return product.category === 'Blended';
+    return true;
   });
 
   const addToCart = (product: Product) => {
@@ -186,7 +204,18 @@ function POSCafe() {
 
 
   const handleProcessPayment = () => {
-    navigate('/processing');
+    if (!selectedEmployee) {
+      alert('กรุณาเลือกพนักงาน');
+      return;
+    }
+    navigate('/processing', { 
+      state: { 
+        cart,
+        employee: selectedEmployee,
+        paymentMethod: showCashPayment ? 'cash' : 'qr',
+        cashAmount: showCashPayment ? parseFloat(cashAmount) : undefined
+      } 
+    });
   };
 
   const handleCashInput = (value: string) => {
@@ -254,21 +283,35 @@ function POSCafe() {
                 ปั่น
               </button>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
-              <input
-                type="text"
-                placeholder="ค้นหา..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg"
-              />
+            <div className="flex items-center space-x-4">
+              <select
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                className="px-4 py-2 border border-slate-200 rounded-lg"
+              >
+                <option value="">เลือกพนักงาน</option>
+                {employeeStore.employees.map(emp => (
+                  <option key={emp.id} value={emp.firstName}>
+                    {emp.firstName}
+                  </option>
+                ))}
+              </select>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="ค้นหา..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg"
+                />
+              </div>
             </div>
           </div>
 
           {/* Products Grid */}
           <div className="grid grid-cols-3 gap-4">
-            {products.map(product => (
+            {filteredProducts.map(product => (
               <div
                 key={product.id}
                 className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
