@@ -1,27 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { Receipt as ReceiptIcon, Eye, X } from 'lucide-react';
+import { supabase } from '../lib/supabase'; // Import Supabase client
+import { format } from 'date-fns'; // Import date-fns for formatting date
 
-// Mock data for receipts
-const mockReceipts = [
-  {
-    id: 1001,
-    date: '2024-03-15',
-    time: '10:30 AM',
-    paymentMethod: 'cash',
-    total: 25.50,
-    status: 'done',
-    employee: 'John',
-    items: [
-      { name: 'Americano', price: 40, quantity: 2, customization: { temperature: 'ร้อน', size: 'เล็ก', sweetness: 'หวานปกติ' } },
-      { name: 'Croissant', price: 35, quantity: 1 }
-    ]
-  },
-  // ... (keep other mock receipts)
-];
+// Define types for receipt and item structure
+interface ReceiptItem {
+  unitprice: any;
+  name: string;
+  price: number;
+  quantity: number;
+  customization?: {
+    temperature: string;
+    size: string;
+    sweetness: string;
+  };
+}
+
+interface Receipt {
+  id: number;
+  created_at: string;
+  order_id: number;
+  payment_method: string;
+  status: string;
+  total_amount: number;
+  employee: string;
+  items: ReceiptItem[]; // Related items for the receipt
+}
 
 interface ReceiptDetailsProps {
-  receipt: typeof mockReceipts[0];
+  receipt: Receipt;
   onClose: () => void;
 }
 
@@ -30,11 +38,8 @@ function ReceiptDetails({ receipt, onClose }: ReceiptDetailsProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full p-6">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold">รายละเอียดใบเสร็จ #{receipt.id}</h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded-full"
-          >
+          <h3 className="text-xl font-semibold">รายละเอียดใบเสร็จ #{receipt.order_id}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full">
             <X className="h-5 w-5 text-slate-600" />
           </button>
         </div>
@@ -43,11 +48,11 @@ function ReceiptDetails({ receipt, onClose }: ReceiptDetailsProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-slate-600">วันที่</p>
-              <p className="font-medium">{receipt.date}</p>
+              <p className="font-medium">{format(new Date(receipt.created_at), 'dd-MM-yyyy')}</p>
             </div>
             <div>
               <p className="text-sm text-slate-600">เวลา</p>
-              <p className="font-medium">{receipt.time}</p>
+              <p className="font-medium">{format(new Date(receipt.created_at), 'HH:mm:ss')}</p>
             </div>
             <div>
               <p className="text-sm text-slate-600">พนักงาน</p>
@@ -55,7 +60,7 @@ function ReceiptDetails({ receipt, onClose }: ReceiptDetailsProps) {
             </div>
             <div>
               <p className="text-sm text-slate-600">วิธีชำระเงิน</p>
-              <p className="font-medium capitalize">{receipt.paymentMethod}</p>
+              <p className="font-medium capitalize">{receipt.payment_method}</p>
             </div>
           </div>
 
@@ -66,6 +71,7 @@ function ReceiptDetails({ receipt, onClose }: ReceiptDetailsProps) {
                   <th className="text-left pb-2">รายการ</th>
                   <th className="text-center pb-2">จำนวน</th>
                   <th className="text-right pb-2">ราคา</th>
+                  <th className="text-right pb-2">ยอดรวม</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,7 +86,8 @@ function ReceiptDetails({ receipt, onClose }: ReceiptDetailsProps) {
                       )}
                     </td>
                     <td className="text-center">{item.quantity}</td>
-                    <td className="text-right">฿{(item.price * item.quantity).toFixed(2)}</td>
+                    <td className="text-right">฿{item.unitprice.toFixed(2)}</td> {/* Subprice per item */}
+                    <td className="text-right">฿{(item.unitprice * item.quantity).toFixed(2)}</td> {/* Total per item */}
                   </tr>
                 ))}
               </tbody>
@@ -89,7 +96,7 @@ function ReceiptDetails({ receipt, onClose }: ReceiptDetailsProps) {
 
           <div className="flex justify-end">
             <div className="text-right">
-              <p className="text-lg font-semibold">ยอดรวม: ฿{receipt.total.toFixed(2)}</p>
+              <p className="text-lg font-semibold">ยอดรวม: ฿{receipt.total_amount.toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -99,7 +106,41 @@ function ReceiptDetails({ receipt, onClose }: ReceiptDetailsProps) {
 }
 
 function Receipt() {
-  const [selectedReceipt, setSelectedReceipt] = useState<typeof mockReceipts[0] | null>(null);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+
+  // Fetch data from the `receipt` table in Supabase
+  useEffect(() => {
+    const fetchReceipts = async () => {
+      const { data, error } = await supabase
+        .from('receipt')
+        .select('*')
+        .order('created_at', { ascending: false }); // Sort by created_at, descending order
+      
+      if (error) {
+        console.error('Error fetching receipts:', error);
+      } else {
+        // Fetch related items (you can also join with `orderdetail` if necessary)
+        const enrichedReceipts = await Promise.all(data.map(async (receipt: any) => {
+          const { data: itemsData, error: itemsError } = await supabase
+            .from('orderdetail')
+            .select('*')
+            .eq('order_id', receipt.order_id);
+
+          if (itemsError) {
+            console.error('Error fetching order details:', itemsError);
+            return { ...receipt, items: [] };
+          }
+
+          return { ...receipt, items: itemsData };
+        }));
+
+        setReceipts(enrichedReceipts);
+      }
+    };
+
+    fetchReceipts();
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -142,31 +183,17 @@ function Receipt() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {mockReceipts.map((receipt) => (
+                {receipts.map((receipt) => (
                   <tr key={receipt.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                      #{receipt.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                      {receipt.date}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                      {receipt.time}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                      {receipt.employee}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 capitalize">
-                      {receipt.paymentMethod}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                      ฿{receipt.total.toFixed(2)}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">#{receipt.order_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{format(new Date(receipt.created_at), 'dd-MM-yyyy')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{format(new Date(receipt.created_at), 'HH:mm:ss')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{receipt.employee}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 capitalize">{receipt.payment_method}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">฿{receipt.total_amount.toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                        ${receipt.status === 'processing' ? 'bg-yellow-100 text-yellow-800' : 
-                          receipt.status === 'done' ? 'bg-green-100 text-green-800' : 
-                          'bg-red-100 text-red-800'}`}>
+                        ${receipt.status === 'done' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         {receipt.status}
                       </span>
                     </td>

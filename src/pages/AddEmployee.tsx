@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, User } from 'lucide-react';
-import { employeeStore } from './ManagerDashboard';
+import { supabase } from '../lib/supabase'; // Import Supabase client
 
 function AddEmployee() {
   const navigate = useNavigate();
@@ -9,9 +9,9 @@ function AddEmployee() {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(''); // Reset error state
 
     if (!firstName.trim() || !lastName.trim()) {
       setError('Please fill in all fields');
@@ -19,13 +19,28 @@ function AddEmployee() {
     }
 
     try {
-      // Add the new employee
-      employeeStore.addEmployee(firstName.trim(), lastName.trim());
-      
-      // Show success message and navigate back
+      // Step 1: Insert employee data into the `employee` table in Supabase
+      const {error: insertError } = await supabase
+        .from('employee')
+        .insert([
+          {
+            firstname: firstName.trim(),
+            lastname: lastName.trim(),
+            firstlast: `${firstName.trim()} ${lastName.trim()}`,
+          },
+        ]);
+
+      if (insertError) {
+        console.error('Error inserting employee:', insertError);
+        setError('Failed to add employee. Please try again.');
+        return;
+      }
+
+      // Step 2: Show success message and navigate back
       alert('Employee added successfully!');
-      navigate('/dashboard');
+      navigate('/pos'); // Redirect to the dashboard after success
     } catch (err) {
+      console.error('Unexpected error:', err);
       setError('Failed to add employee. Please try again.');
     }
   };
@@ -37,7 +52,7 @@ function AddEmployee() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center">
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/pos')}
               className="flex items-center text-slate-600 hover:text-slate-900"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
@@ -55,7 +70,7 @@ function AddEmployee() {
               <User className="w-8 h-8 text-slate-700" />
             </div>
           </div>
-          
+
           <h1 className="text-2xl font-bold text-center text-slate-900 mb-8">
             Add New Employee
           </h1>

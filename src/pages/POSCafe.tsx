@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Coffee, ShoppingCart, Plus, Minus, Search, CreditCard, QrCode, X, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { employeeStore } from './ManagerDashboard';
+import { supabase } from '../lib/supabase';
 
 interface Product {
   id: number;
@@ -88,6 +88,12 @@ const products: Product[] = [
   }
 ];
 
+export interface Employee {
+  id: number;
+  firstname: string;
+  lastname: string;
+  firstlast: string;
+}
 function POSCafe() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -98,6 +104,8 @@ function POSCafe() {
   const [showQRPayment, setShowQRPayment] = useState(false);
   const [cashAmount, setCashAmount] = useState<string>('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [showConfirmPayment, setShowConfirmPayment] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]); // State for employees
   const [customization, setCustomization] = useState<ProductCustomization>({
     temperature: 'ร้อน',
     size: 'เล็ก',
@@ -156,17 +164,117 @@ function POSCafe() {
   };
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      const { data, error } = await supabase.from('employee').select('*');
 
+      if (error) {
+        console.error('Error fetching employees:', error);
+      } else {
+        setEmployees(data); // Set employee data to state
+      }
+    };
+
+    fetchEmployees();
+  }, []);
   const handleCashPayment = () => {
-    setShowCashPayment(true);
-  };
+    if (cart.length === 0) {
+        console.error("Cart is empty. Cannot process payment.");
+        return;
+    }
+    if (!selectedEmployee === true){
+      alert("กรุณาเลือกพนักงาน");
+      return;
+    }
+    setShowCashPayment(true); // Show cash payment popup first
+};
+
+// Function to confirm and insert the order
+const confirmCashPayment = async () => {
+  if (!cashAmount || parseFloat(cashAmount) < total) {
+      alert("Amount paid is insufficient!");
+      return;
+  }
+
+  try {
+      // Step 1: Insert into `order` table
+      const { data: orderData, error: orderError } = await supabase
+          .from('order')
+          .insert([{ 
+              Status: "Processing", 
+              TotalAmount: total 
+          }])
+          .select('id')
+          .single();
+
+      if (orderError) {
+          console.error("Error inserting order:", orderError);
+          return;
+      }
+
+      const orderId = orderData.id; // Get the inserted order ID
+
+      // Step 2: Prepare `orderdetail` data
+      const orderDetails = cart.map(item => ({
+          order_id: orderId, 
+          name: item.name,
+          unitprice: item.price,
+          quantity: item.quantity,
+          totalprice: item.price * item.quantity,
+          desc: `${item.customization.sweetness}, ${item.customization.size}, ${item.customization.temperature}`
+      }));
+
+      // Step 3: Insert into `orderdetail` table
+      const { error: orderDetailsError } = await supabase
+          .from('orderdetail')
+          .insert(orderDetails);
+
+      if (orderDetailsError) {
+          console.error("Error inserting order details:", orderDetailsError);
+          return;
+      }
+
+      console.log("Order and order details successfully saved to database!");
+      console.log("this is selected emply:",` ${selectedEmployee}`);
+      // Step 4: Insert into `receipt` table
+      const { error: receiptError } = await supabase
+          .from('receipt')
+          .insert([{
+              order_id: orderId,
+              payment_method: "cash",  // Assuming payment method is cash
+              total_amount: total,
+              status: "Processing",  // Assuming status is completed after successful payment
+              employee: selectedEmployee  // You can set this based on the employee selected
+          }]);
+
+      if (receiptError) {
+          console.error("Error inserting receipt:", receiptError);
+          return;
+      }
+
+      console.log("Receipt successfully saved to database!");
+
+      // Step 5: Reset state and redirect
+      setCart([]); // Clear cart after successful order
+      setCashAmount(''); // Reset cash amount
+      setShowCashPayment(false); // Close popup
+      setShowConfirmPayment(false); // Close confirmation popup
+      navigate('/processing', { 
+        state: { orderId, orderDetails }
+      });
+
+  } catch (error) {
+      console.error("Unexpected error:", error);
+  }
+};
+
+
 
   const handleQRPayment = async () => {
     if (cart.length === 0) {
         console.error("Cart is empty. Cannot process payment.");
         return;
     }
-
     // Convert cart items to match the expected API payload format, including the image
     const payload = {
         item: cart.map(item => ({
@@ -176,11 +284,13 @@ function POSCafe() {
             image: item.image // Include product image URL
         })),
         currency: "thb",
-        method: ["promptpay"]
+        method: ["promptpay"],
+        employee: selectedEmployee
     };
     setShowQRPayment(true);
     try {
-        const response = await fetch("https://481b-223-24-189-214.ngrok-free.app/api/stripe/custom_price", {
+        const backend_api = import.meta.env.VITE_BACKEND_URL;
+        const response = await fetch(`${backend_api}/api/stripe/custom_price`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -194,7 +304,14 @@ function POSCafe() {
 
         const data = await response.json();
         if (data.data) {
-          window.location.href = data.data; // Redirect to payment URL
+          const paymentUrl = data.data; // Stripe payment URL
+          
+            // Open in a new tab
+          window.open(paymentUrl, "_blank");
+          setShowQRPayment(false); // Close QR payment popup
+          setCart([]); // Clear cart after successful order
+          
+          
         }
 
     } catch (error) {
@@ -213,11 +330,11 @@ function POSCafe() {
         cart,
         employee: selectedEmployee,
         paymentMethod: showCashPayment ? 'cash' : 'qr',
-        cashAmount: showCashPayment ? parseFloat(cashAmount) : undefined
+        cashAmount: showCashPayment ? parseFloat(cashAmount) : null
       } 
     });
   };
-
+  
   const handleCashInput = (value: string) => {
     if (value === 'clear') {
       setCashAmount('');
@@ -290,9 +407,9 @@ function POSCafe() {
                 className="px-4 py-2 border border-slate-200 rounded-lg"
               >
                 <option value="">เลือกพนักงาน</option>
-                {employeeStore.employees.map(emp => (
-                  <option key={emp.id} value={emp.firstName}>
-                    {emp.firstName}
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.firstlast} >
+                  {emp.firstname} {emp.lastname}
                   </option>
                 ))}
               </select>
@@ -510,112 +627,113 @@ function POSCafe() {
       )}
 
       {/* Cash Payment Modal */}
-      {showCashPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold">ชำระเงินสด</h3>
-              <button
-                onClick={() => {
-                  setShowCashPayment(false);
-                  setCashAmount('');
-                }}
-                className="p-1 hover:bg-slate-100 rounded-full"
-              >
-                <X className="h-5 w-5 text-slate-600" />
-              </button>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-lg mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-slate-600">ยอดรวม</span>
-                <span className="text-lg font-semibold">฿{total}</span>
-              </div>
-              {cashAmount && (
-                <>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-slate-600">รับเงิน</span>
-                    <span className="text-lg font-semibold">฿{parseFloat(cashAmount).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">เงินทอน</span>
-                    <span className="text-lg font-semibold text-green-600">฿{getChange().toFixed(2)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={cashAmount}
-                  readOnly
-                  placeholder="0.00"
-                  className="w-full px-4 py-3 text-2xl text-right font-semibold bg-white border border-slate-200 rounded-lg"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'backspace'].map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => handleCashInput(key)}
-                    className="p-4 text-xl font-medium bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
-                  >
-                    {key === 'backspace' ? '←' : key === 'clear' ? 'C' : key}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={handleProcessPayment}
-                disabled={!cashAmount || parseFloat(cashAmount) < total}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed"
-              >
-                <span>ยืนยันการชำระเงิน</span>
-              </button>
-            </div>
-          </div>
+        {showCashPayment && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-semibold">ชำระเงินสด</h3>
+          <button
+            onClick={() => {
+              setShowCashPayment(false);
+              setCashAmount('');
+            }}
+            className="p-1 hover:bg-slate-100 rounded-full"
+          >
+            <X className="h-5 w-5 text-slate-600" />
+          </button>
         </div>
-      )}
+
+        <div className="bg-slate-50 p-4 rounded-lg mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-slate-600">ยอดรวม</span>
+            <span className="text-lg font-semibold">฿{total}</span>
+          </div>
+          {cashAmount && (
+            <>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-slate-600">รับเงิน</span>
+                <span className="text-lg font-semibold">฿{parseFloat(cashAmount).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-600">เงินทอน</span>
+                <span className="text-lg font-semibold text-green-600">
+                  ฿{(parseFloat(cashAmount) - total).toFixed(2)}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={cashAmount}
+              readOnly
+              placeholder="0.00"
+              className="w-full px-4 py-3 text-2xl text-right font-semibold bg-white border border-slate-200 rounded-lg"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'backspace'].map((key) => (
+              <button
+                key={key}
+                onClick={() => handleCashInput(key)}
+                className="p-4 text-xl font-medium bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                {key === 'backspace' ? '←' : key === 'clear' ? 'C' : key}
+              </button>
+            ))}
+          </div>
+
+          {/* ✅ Confirm Payment Button */}
+          <button
+            onClick={confirmCashPayment} // Calls function to insert data
+            disabled={!cashAmount || parseFloat(cashAmount) < total}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed"
+          >
+            <span>ยืนยันการชำระเงิน</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
 
       {/* QR Payment Modal */}
       {showQRPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold">สแกน QR Code เพื่อชำระเงิน</h3>
-              <button
-                onClick={() => setShowQRPayment(false)}
-                className="p-1 hover:bg-slate-100 rounded-full"
-              >
-                <X className="h-5 w-5 text-slate-600" />
-              </button>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-lg mb-6">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600">ยอดรวม</span>
-                <span className="text-lg font-semibold">฿{total}</span>
-              </div>
-            </div>
-
-            <div className="flex justify-center mb-6">
-              <div className="w-64 h-64 bg-slate-100 rounded-lg flex items-center justify-center">
-                <QrCode className="w-32 h-32 text-slate-400" />
-              </div>
-            </div>
-
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-semibold">กำลังดำเนินการชำระเงิน...</h3>
             <button
-              onClick={handleProcessPayment}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+              onClick={() => setShowQRPayment(false)}
+              className="p-1 hover:bg-slate-100 rounded-full"
             >
-              <span>ยืนยันการชำระเงิน</span>
+              <X className="h-5 w-5 text-slate-600" />
             </button>
           </div>
+
+          <div className="flex justify-center mb-6">
+            {/* ✅ Show Loading Animation Instead of QR Code */}
+            <div className="w-24 h-24 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+
+          <p className="text-center text-gray-600 mb-4">
+            กรุณารอสักครู่ ระบบกำลังดำเนินการชำระเงิน...
+          </p>
+
+          <button
+            onClick={()=> setShowQRPayment(false)}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          >
+            <span>ยกเลิกรายการ</span>
+          </button>
         </div>
-      )}
+      </div>
+    )}
+
     </div>
   );
 }

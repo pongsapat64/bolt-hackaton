@@ -10,24 +10,28 @@ import AddEmployee from './pages/AddEmployee';
 import AddProduct from './pages/AddProduct';
 import ManagerDashboard from './pages/ManagerDashboard';
 import PaymentComplete from './pages/PaymentComplete';
-
+import TestSupabase from './pages/testSupabase';
+import { WebSocketProvider } from './pages/WebSocketProvider';
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/pos" element={<POSCafe />} />
-        <Route path="/payment-complete" element={<PaymentComplete />} />
-        <Route path="/processing" element={<ProcessingOrder />} />
-        <Route path="/receipt" element={<Receipt />} />
-        <Route path="/products" element={<ProductList />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/add-employee" element={<AddEmployee />} />
-        <Route path="/add-product" element={<AddProduct />} />
-        <Route path="/manager" element={<ManagerDashboard />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+    <WebSocketProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/pos" element={<POSCafe />} />
+          <Route path="/payment-complete" element={<PaymentComplete />} />
+          <Route path="/processing" element={<ProcessingOrder />} />
+          <Route path="/receipt" element={<Receipt />} />
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/add-employee" element={<AddEmployee />} />
+          <Route path="/add-product" element={<AddProduct />} />
+          <Route path="/manager" element={<ManagerDashboard />} />
+          <Route path="/test-supabase" element={<TestSupabase />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
+    </WebSocketProvider>
   );
 }
 

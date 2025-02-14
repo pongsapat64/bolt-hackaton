@@ -170,7 +170,7 @@ function AddProduct() {
                   URL รูปภาพ
                 </label>
                 <input
-                  type="url"
+                  type="file"
                   id="image"
                   value={productData.image}
                   onChange={(e) => setProductData(prev => ({ ...prev, image: e.target.value }))}
